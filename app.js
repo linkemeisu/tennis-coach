@@ -430,15 +430,34 @@ function renderHome() {
     html += '</div>';
   }
 
-  // Today — collapsible
+  // Today — collapsed by default, show 5 max with "more" hint
+  var todayCount = todayLessons.length;
+  var collapsedLimit = todayCount <= 4 ? 4 : 5;
+  var hasMore = todayCount > collapsedLimit;
+  var collapsedItems = todayLessons.slice(0, collapsedLimit);
+
   html += '<div class="section-title" id="today-toggle" style="cursor:pointer;display:flex;align-items:center;gap:4px">';
-  html += '今日 <span id="today-arrow" style="font-size:11px;transition:transform .2s">&#9660;</span>';
-  if (todayLessons.length > 0) html += '<span style="font-weight:400;color:var(--text-tertiary);font-size:12px;margin-left:4px">' + todayLessons.length + '节</span>';
+  html += '今日 <span id="today-arrow" class="toggle-arrow collapsed">&#9654;</span>';
+  if (todayCount > 0) html += '<span style="font-weight:400;color:var(--text-tertiary);font-size:12px;margin-left:4px">' + todayCount + '节</span>';
   html += '</div>';
-  html += '<div id="today-content">';
-  if (todayLessons.length === 0) {
+
+  // Collapsed view
+  html += '<div id="today-collapsed">';
+  if (todayCount === 0) {
     html += '<div class="card"><div class="empty" style="padding:20px"><p>今天没有课程</p></div></div>';
   } else {
+    html += '<div class="card">';
+    collapsedItems.forEach(function (l) { html += lessonItemHTML(l); });
+    if (hasMore) {
+      html += '<div style="text-align:center;padding:10px;font-size:12px;color:var(--text-tertiary);opacity:0.5;border-top:1px solid var(--border)">还有 ' + (todayCount - collapsedLimit) + ' 节...</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Expanded view (hidden by default)
+  html += '<div id="today-expanded" style="display:none">';
+  if (todayCount > 0) {
     html += '<div class="card">';
     todayLessons.forEach(function (l) { html += lessonItemHTML(l); });
     html += '</div>';
@@ -476,15 +495,22 @@ function renderHome() {
   // Today toggle
   var todayToggle = $('#today-toggle');
   if (todayToggle) {
+    var collapsed = true;
     todayToggle.addEventListener('click', function () {
-      var content = $('#today-content');
+      collapsed = !collapsed;
+      var collapsedEl = $('#today-collapsed');
+      var expandedEl = $('#today-expanded');
       var arrow = $('#today-arrow');
-      if (content.style.display === 'none') {
-        content.style.display = 'block';
-        arrow.style.transform = 'rotate(0deg)';
+      if (collapsed) {
+        collapsedEl.style.display = 'block';
+        expandedEl.style.display = 'none';
+        arrow.classList.add('collapsed');
+        arrow.innerHTML = '&#9654;';
       } else {
-        content.style.display = 'none';
-        arrow.style.transform = 'rotate(-90deg)';
+        collapsedEl.style.display = 'none';
+        expandedEl.style.display = 'block';
+        arrow.classList.remove('collapsed');
+        arrow.innerHTML = '&#9660;';
       }
     });
   }

@@ -621,3 +621,11 @@ nav.tab-bar button.active .icon { opacity: 1; }
   font-family: inherit;
 }
 .batch-bar button:active { background: #F5F5F4; }
+
+/* ===== Toggle Arrow ===== */
+.toggle-arrow {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform .2s;
+  color: var(--text-tertiary);
+}
