@@ -692,12 +692,12 @@ function addAllToCalendar(lessons) {
 
 // ---- QUICK COMPLETED LESSON HELPERS ----
 
-function quickAddCompleted(studentId, studentName) {
-  var today = todayStr();
+function quickAddCompleted(studentId, studentName, date) {
+  var d = date || todayStr();
   var lesson = {
     studentId: studentId,
     studentName: studentName,
-    date: today,
+    date: d,
     startTime: '09:00',
     endTime: '10:00',
     duration: 60,
@@ -791,15 +791,17 @@ function showStudentDetail(sid) {
     refreshDetailList(s);
   }
 
+  var yesterday = offsetDate(-1);
+
   $('#btn-qplus1').addEventListener('click', function () {
-    var lesson = quickAddCompleted(s.id, s.name);
+    var lesson = quickAddCompleted(s.id, s.name, yesterday);
     sessionIds.push(lesson.id);
     updateCount();
   });
 
   $('#btn-qplus5').addEventListener('click', function () {
     for (var i = 0; i < 5; i++) {
-      var lesson = quickAddCompleted(s.id, s.name);
+      var lesson = quickAddCompleted(s.id, s.name, yesterday);
       sessionIds.push(lesson.id);
     }
     updateCount();
@@ -975,12 +977,13 @@ function showAddModalNewStudent() {
   setTimeout(function () {
     var sel = $('#add-student');
     if (sel && sel.tagName === 'SELECT') {
-      // Select "+ 新学生" option
       sel.value = '__new__';
       sel.dispatchEvent(new Event('change'));
-      setTimeout(function () { $('#add-student-new').focus(); }, 100);
+      // Turn on "已上完" toggle, show quick counter, set date to yesterday
+      var cb = $('#add-completed');
+      if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      setTimeout(function () { $('#add-student-new').focus(); }, 150);
     } else if (sel) {
-      // No existing students - it's an input, just focus it
       sel.focus();
     }
   }, 100);
@@ -1254,7 +1257,7 @@ function showAddModal() {
     var name = getAddStudentName();
     if (!name) { alert('请先选择学生'); return; }
     var s = findOrCreateStudent(name);
-    var lesson = quickAddCompleted(s.id, s.name);
+    var lesson = quickAddCompleted(s.id, s.name, $('#add-date').value);
     sessionIds.push(lesson.id);
     updateQCount();
   });
@@ -1264,7 +1267,7 @@ function showAddModal() {
     if (!name) { alert('请先选择学生'); return; }
     var s = findOrCreateStudent(name);
     for (var i = 0; i < 5; i++) {
-      var lesson = quickAddCompleted(s.id, s.name);
+      var lesson = quickAddCompleted(s.id, s.name, $('#add-date').value);
       sessionIds.push(lesson.id);
     }
     updateQCount();
