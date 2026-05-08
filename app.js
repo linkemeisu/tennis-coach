@@ -422,27 +422,39 @@ function renderHome() {
   html += '<div class="stat-card"><div class="num">' + appData.students.length + '</div><div class="label">学生人数</div></div>';
   html += '</div>';
 
-  // Today's lessons
-  html += '<div class="section-title">📅 今日课程</div>';
+  // Today
+  html += '<div class="section-title">今日</div>';
   if (todayLessons.length === 0) {
     html += '<div class="card"><div class="empty" style="padding:20px"><p>今天没有课程</p></div></div>';
   } else {
     html += '<div class="card">';
-    todayLessons.forEach(function (l) {
-      html += lessonItemHTML(l);
-    });
+    todayLessons.forEach(function (l) { html += lessonItemHTML(l); });
     html += '</div>';
   }
 
-  // Upcoming (next few)
-  const nextUpcoming = upcoming.filter(function (l) { return l.date > today; }).slice(0, 5);
-  if (nextUpcoming.length > 0) {
-    html += '<div class="section-title">⏰ 即将到来</div>';
-    html += '<div class="card">';
-    nextUpcoming.forEach(function (l) {
-      html += lessonItemHTML(l);
+  // Upcoming — group by date, Apple Calendar style
+  const future = upcoming.filter(function (l) { return l.date > today; });
+  if (future.length > 0) {
+    var grouped = {};
+    future.forEach(function (l) {
+      if (!grouped[l.date]) grouped[l.date] = [];
+      grouped[l.date].push(l);
     });
-    html += '</div>';
+    var dates = Object.keys(grouped).sort().slice(0, 6);
+
+    html += '<div class="section-title">即将到来</div>';
+    dates.forEach(function (date) {
+      var d = new Date(date + 'T00:00:00');
+      var weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      var label = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + weekdays[d.getDay()];
+      if (date === offsetDate(1)) label = '明天 ' + weekdays[d.getDay()];
+      if (date === offsetDate(2)) label = '后天 ' + weekdays[d.getDay()];
+
+      html += '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin:14px 0 6px 2px">' + label + '</div>';
+      html += '<div class="card">';
+      grouped[date].forEach(function (l) { html += lessonItemHTML(l); });
+      html += '</div>';
+    });
   }
 
   main.innerHTML = html;
@@ -461,15 +473,23 @@ function renderLessonList() {
   html += '<button class="' + (currentLessonFilter === 'completed' ? 'active' : '') + '" data-filter="completed">已上课</button>';
   html += '</div>';
 
+  // Batch calendar for upcoming
+  if (currentLessonFilter === 'upcoming' && lessons.length > 0) {
+    var unsynced = lessons.filter(function (l) { return !l.calendarAdded; });
+    if (unsynced.length > 0) {
+      html += '<div class="batch-bar">';
+      html += '<button id="btn-batch-calendar">全部添加到日历（' + unsynced.length + '节）</button>';
+      html += '</div>';
+    }
+  }
+
   if (lessons.length === 0) {
-    html += '<div class="empty"><div class="icon">📋</div><p>' +
+    html += '<div class="empty"><p>' +
       (currentLessonFilter === 'upcoming' ? '暂无未上课程' : '暂无已完成课程') +
       '</p></div>';
   } else {
     html += '<div class="card">';
-    lessons.forEach(function (l) {
-      html += lessonItemHTML(l);
-    });
+    lessons.forEach(function (l) { html += lessonItemHTML(l); });
     html += '</div>';
   }
 
@@ -492,10 +512,10 @@ function renderStudentList() {
   const main = $('main');
   const students = getStudents();
 
-  let html = '<div class="section-title">👥 学生列表</div>';
+  let html = '<div class="section-title">学生</div>';
 
   if (students.length === 0) {
-    html += '<div class="empty"><div class="icon">👤</div><p>还没有学生<br>添加课程时会自动创建学生档案</p></div>';
+    html += '<div class="empty"><p>还没有学生<br>添加课程时会自动创建学生档案</p></div>';
   } else {
     html += '<div class="card">';
     students.sort(function (a, b) { return getStudentLessonCount(b.id) - getStudentLessonCount(a.id); });
@@ -557,83 +577,134 @@ function renderStudentList() {
   });
 }
 
-// ---- LESSON ITEM HTML ----
+// ---- LESSON ITEM HTML (minimal) ----
 
 function lessonItemHTML(l) {
-  const d = new Date(l.date + 'T00:00:00');
-  const mon = (d.getMonth() + 1) + '月';
-  const day = d.getDate();
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-  const wd = '周' + weekdays[d.getDay()];
-  const timeRange = l.startTime + ' - ' + l.endTime;
-  const dur = Math.round((function () {
-    const [sh, sm] = l.startTime.split(':').map(Number);
-    const [eh, em] = l.endTime.split(':').map(Number);
-    return (eh * 60 + em) - (sh * 60 + sm);
-  }()) / 60 * 10) / 10;
-  const durText = dur + '小时';
+  var dur = calcDuration(l.startTime, l.endTime);
 
-  var html = '<div class="lesson-item" data-lid="' + l.id + '">';
-  html += '<div class="date-badge"><span class="day">' + day + '</span><span class="mon">' + mon + '</span></div>';
-  html += '<div class="info">';
-  html += '<div class="name">' + l.studentName + '</div>';
-  html += '<div class="time">' + timeRange + '（' + durText + '）</div>';
-  html += '<div class="detail">' + wd + ' · ' + l.date + '</div>';
+  var html = '<div class="lesson-row" data-lid="' + l.id + '">';
+
+  // Time column
+  html += '<div class="time-col">';
+  html += '<div class="start">' + l.startTime + '</div>';
+  html += '<div class="end">' + l.endTime + '</div>';
   html += '</div>';
 
+  // Info column
+  html += '<div class="info-col">';
+  html += '<div class="name">' + l.studentName + '</div>';
+  html += '<div class="meta">' + dur + '小时</div>';
+  html += '</div>';
+
+  // Actions
+  html += '<div class="act-col">';
   if (l.status === 'upcoming') {
-    html += '<div class="actions">';
     if (!l.calendarAdded) {
-      html += '<button class="btn-calendar" data-lid="' + l.id + '">📅 加到日历</button>';
+      html += '<button class="btn-cal" data-lid="' + l.id + '">添加到日历</button>';
     } else {
-      html += '<span style="font-size:12px;color:var(--green)">✓ 已添加提醒</span>';
+      html += '<span class="cal-ok">已提醒</span>';
     }
-    html += '</div>';
   }
+  html += '<button class="btn-del" data-lid="' + l.id + '" data-del="1" aria-label="删除">&times;</button>';
+  html += '</div>';
 
   html += '</div>';
   return html;
 }
 
 function bindLessonActions() {
-  $$('.btn-calendar').forEach(function (btn) {
+  // Calendar button
+  $$('.btn-cal').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var lid = btn.dataset.lid;
       var lesson = appData.lessons.find(function (l) { return l.id === lid; });
       if (lesson) {
         addToCalendar(lesson, function () {
-          showToast('已添加到日历 ✓');
+          showToast('已添加到日历');
           renderAll();
         });
       }
     });
   });
 
-  // Swipe-to-delete (simple long press)
-  $$('.lesson-item').forEach(function (el) {
+  // Delete button
+  $$('.btn-del').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var lid = btn.dataset.lid;
+      var lesson = appData.lessons.find(function (l) { return l.id === lid; });
+      if (!lesson) return;
+      var msg = '删除 ' + lesson.studentName + ' ' + lesson.date + ' ' + lesson.startTime + ' 的课程？';
+      if (lesson.calendarAdded && lesson.status === 'upcoming') {
+        msg += '\n\n已在日历中，请手动从日历删除此事件。';
+      }
+      if (confirm(msg)) {
+        deleteLesson(lid);
+        showToast('已删除');
+        renderAll();
+      }
+    });
+  });
+
+  // Row click — quick toggle for upcoming lessons
+  $$('.lesson-row').forEach(function (el) {
     el.addEventListener('click', function () {
       var lid = el.dataset.lid;
       var lesson = appData.lessons.find(function (l) { return l.id === lid; });
       if (!lesson) return;
-      var action = confirm(
-        lesson.studentName + ' ' + lesson.date + ' ' + lesson.startTime + '\n\n' +
-        (lesson.status === 'upcoming' ? '标记为已完成？\n(点"取消"则为删除)' : '删除这条记录？')
-      );
-      if (action) {
-        if (lesson.status === 'upcoming') {
+      if (lesson.status === 'upcoming') {
+        if (confirm('标记「' + lesson.studentName + ' ' + lesson.date + '」为已完成？')) {
           updateLesson(lid, { status: 'completed' });
-          showToast('已标记为完成 ✓');
-        }
-      } else {
-        if (confirm('确定要删除这条课程记录吗？')) {
-          deleteLesson(lid);
-          showToast('已删除');
+          showToast('已标记完成');
+          renderAll();
         }
       }
-      renderAll();
     });
   });
+
+  // Batch calendar button
+  var batchBtn = $('#btn-batch-calendar');
+  if (batchBtn) {
+    batchBtn.addEventListener('click', function () {
+      var unsynced = appData.lessons.filter(function (l) {
+        return l.status === 'upcoming' && !l.calendarAdded;
+      });
+      if (unsynced.length === 0) {
+        alert('所有未上课程已同步到日历');
+        return;
+      }
+      if (confirm('将 ' + unsynced.length + ' 节未同步课程全部添加到日历？')) {
+        addAllToCalendar(unsynced);
+      }
+    });
+  }
+}
+
+// ---- BATCH CALENDAR ----
+
+function addAllToCalendar(lessons) {
+  if (lessons.length === 0) return;
+  var all = lessons.map(function (l) { return generateICS(l); }).join('');
+  var blob = new Blob([all], { type: 'text/calendar;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'tennis_batch.ics';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 200);
+
+  lessons.forEach(function (l) {
+    updateLesson(l.id, { calendarAdded: true });
+  });
+  showToast('已批量添加 ' + lessons.length + ' 节到日历');
+  renderAll();
 }
 
 // ---- QUICK COMPLETED LESSON HELPERS ----
@@ -781,14 +852,14 @@ function renderDetailLessonList(upcoming, completed) {
   var html = '';
 
   if (upcoming.length > 0) {
-    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:4px">⏰ 未上课</div>';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:4px">未上课</div>';
     upcoming.forEach(function (l) {
       html += detailLessonItemHTML(l);
     });
   }
 
   if (completed.length > 0) {
-    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:12px">✅ 已上课</div>';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:12px">已上课</div>';
     completed.forEach(function (l) {
       html += detailLessonItemHTML(l);
     });
@@ -1036,7 +1107,7 @@ function showAddModal() {
 
   // Voice button
   html += '<button class="voice-btn" id="btn-voice">';
-  html += '<span class="mic">🎤</span> 语音输入排课</button>';
+  html += '语音输入排课</button>';
 
   html += '<div class="divider-text">或手动填写</div>';
 
@@ -1116,11 +1187,11 @@ function showAddModal() {
   $('#btn-voice').addEventListener('click', function () {
     var btn = $('#btn-voice');
     btn.classList.add('listening');
-    btn.innerHTML = '<span class="mic">🎤</span> 正在聆听...';
+    btn.innerHTML = '正在聆听...';
 
     var recognition = startVoiceInput(function (text) {
       btn.classList.remove('listening');
-      btn.innerHTML = '<span class="mic">🎤</span> 语音输入排课';
+      btn.innerHTML = '语音输入排课';
 
       if (!text) {
         alert('没有识别到语音，请重试。');
@@ -1136,7 +1207,7 @@ function showAddModal() {
       if (btn.classList.contains('listening')) {
         recognition.stop();
         btn.classList.remove('listening');
-        btn.innerHTML = '<span class="mic">🎤</span> 语音输入排课';
+        btn.innerHTML = '语音输入排课';
       }
     }, 10000);
   });
@@ -1243,7 +1314,7 @@ function showAddModal() {
     if (isCompleted) {
       showToast('已添加历史课时 ✓');
     } else {
-      showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+      showToast('课程已保存，点击添加到日历即可设置提醒');
     }
     renderAll();
   });
@@ -1388,7 +1459,7 @@ function showConfirmModal(parsed, onSuccess) {
     if (isCompleted) {
       showToast('已添加历史课时 ✓');
     } else {
-      showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+      showToast('课程已保存，点击添加到日历即可设置提醒');
     }
     renderAll();
 
