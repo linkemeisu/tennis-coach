@@ -681,19 +681,13 @@ function bindLessonActions() {
     });
   });
 
-  // Row click — quick toggle for upcoming lessons
+  // Row click — open edit modal (Apple-style: tap to edit)
   $$('.lesson-row').forEach(function (el) {
     el.addEventListener('click', function () {
       var lid = el.dataset.lid;
       var lesson = appData.lessons.find(function (l) { return l.id === lid; });
       if (!lesson) return;
-      if (lesson.status === 'upcoming') {
-        if (confirm('标记「' + lesson.studentName + ' ' + lesson.date + '」为已完成？')) {
-          updateLesson(lid, { status: 'completed' });
-          showToast('已标记完成');
-          renderAll();
-        }
-      }
+      showEditLessonModal(lesson, function () { renderAll(); });
     });
   });
 
@@ -1043,6 +1037,8 @@ function showAddModalNewStudent() {
 // ---- EDIT LESSON MODAL ----
 
 function showEditLessonModal(lesson, onSaved) {
+  if ($('#edit-lesson-modal')) return;
+
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'edit-lesson-modal';
@@ -1106,13 +1102,14 @@ function showEditLessonModal(lesson, onSaved) {
     if (!date || !startTime) { alert('请填写日期和时间'); return; }
 
     var endTime = addMinutes(startTime, durationMins);
+    var changed = (date !== lesson.date || startTime !== lesson.startTime || durationMins !== (calcDuration(lesson.startTime, lesson.endTime) * 60));
     updateLesson(lesson.id, {
       date: date,
       startTime: startTime,
       endTime: endTime,
       duration: durationMins,
       status: isCompleted ? 'completed' : 'upcoming',
-      calendarAdded: isCompleted ? lesson.calendarAdded : false, // reset calendar if re-opened
+      calendarAdded: (isCompleted || !changed) ? lesson.calendarAdded : false,
     });
 
     closeEditModal();
