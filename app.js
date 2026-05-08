@@ -636,7 +636,7 @@ function bindLessonActions() {
   });
 }
 
-// ---- STUDENT DETAIL ----
+// ---- STUDENT DETAIL (Apple Notes checklist style) ----
 
 function showStudentDetail(sid) {
   var s = appData.students.find(function (st) { return st.id === sid; });
@@ -647,36 +647,38 @@ function showStudentDetail(sid) {
     .filter(function (l) { return l.studentId === sid; })
     .sort(function (a, b) { return (b.date + b.startTime).localeCompare(a.date + a.startTime); });
 
+  var upcomingLessons = lessons.filter(function (l) { return l.status === 'upcoming'; });
+  var completedLessons = lessons.filter(function (l) { return l.status === 'completed'; });
+
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'detail-modal';
 
-  var html = '<div class="modal-sheet">';
+  var html = '<div class="modal-sheet" style="padding-bottom:20px">';
+
+  // Header
   html += '<div class="detail-header">';
   html += '<div class="avatar-lg">' + s.name.charAt(0) + '</div>';
   html += '<div class="name-lg">' + s.name + '</div>';
   html += '<div class="stats-sm">共 ' + total + ' 节课 · 本月 ' + month + ' 节</div>';
   html += '</div>';
 
-  if (lessons.length === 0) {
-    html += '<div class="empty" style="padding:16px"><p>暂无上课记录</p></div>';
-  } else {
-    html += '<div class="card">';
-    lessons.forEach(function (l) {
-      var statusTag = l.status === 'completed' ? '✅' : l.status === 'upcoming' ? '⏰' : '❌';
-      html += '<div class="lesson-item">';
-      html += '<div class="info"><span style="font-size:14px;font-weight:500">' + l.date + ' ' + l.startTime + '-' + l.endTime + '</span>';
-      html += '<span style="margin-left:8px;font-size:12px;color:var(--text-secondary)">' + statusTag + '</span></div>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-
-  html += '<button class="btn btn-secondary" style="margin-top:12px" id="btn-close-detail">关闭</button>';
-  html += '<button class="btn btn-danger" id="btn-delete-student" data-sid="' + s.id + '">删除学生及所有记录</button>';
+  // Quick actions
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px">';
+  html += '<button class="btn btn-primary" style="flex:1;font-size:14px;padding:10px" id="btn-detail-add">+ 添加课时</button>';
+  html += '<button class="btn btn-secondary" style="flex:1;font-size:14px;padding:10px" id="btn-close-detail">关闭</button>';
   html += '</div>';
-  overlay.innerHTML = html;
 
+  // Lesson list
+  html += '<div id="detail-lesson-list">';
+  html += renderDetailLessonList(upcomingLessons, completedLessons);
+  html += '</div>';
+
+  // Delete student
+  html += '<button class="btn btn-danger" id="btn-delete-student" data-sid="' + s.id + '" style="margin-top:16px">删除学生及所有记录</button>';
+  html += '</div>';
+
+  overlay.innerHTML = html;
   document.body.appendChild(overlay);
 
   overlay.addEventListener('click', function (e) {
@@ -684,6 +686,11 @@ function showStudentDetail(sid) {
   });
 
   $('#btn-close-detail').addEventListener('click', closeDetail);
+
+  $('#btn-detail-add').addEventListener('click', function () {
+    closeDetail();
+    showAddModalForStudent(s);
+  });
 
   $('#btn-delete-student').addEventListener('click', function () {
     if (confirm('确定删除「' + s.name + '」及其所有课程记录吗？此操作不可恢复。')) {
@@ -694,8 +701,248 @@ function showStudentDetail(sid) {
     }
   });
 
+  // Bind checklist item events
+  bindDetailLessonEvents(s);
+
   function closeDetail() {
     var m = $('#detail-modal');
+    if (m) document.body.removeChild(m);
+    renderAll();
+  }
+}
+
+function renderDetailLessonList(upcoming, completed) {
+  var html = '';
+
+  if (upcoming.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:4px">⏰ 未上课</div>';
+    upcoming.forEach(function (l) {
+      html += detailLessonItemHTML(l);
+    });
+  }
+
+  if (completed.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;margin-top:12px">✅ 已上课</div>';
+    completed.forEach(function (l) {
+      html += detailLessonItemHTML(l);
+    });
+  }
+
+  if (upcoming.length === 0 && completed.length === 0) {
+    html += '<div class="empty" style="padding:20px"><p>还没有课时记录</p></div>';
+  }
+
+  return html;
+}
+
+function detailLessonItemHTML(l) {
+  var d = new Date(l.date + 'T00:00:00');
+  var mon = (d.getMonth() + 1);
+  var day = d.getDate();
+  var weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  var wd = '周' + weekdays[d.getDay()];
+  var dur = calcDuration(l.startTime, l.endTime);
+
+  var isCompleted = l.status === 'completed';
+  var circleClass = isCompleted ? 'check-circle checked' : 'check-circle';
+  var circleInner = isCompleted ? '●' : '○';
+
+  var html = '<div class="checklist-item" data-lid="' + l.id + '">';
+  html += '<span class="' + circleClass + '" data-toggle="' + l.id + '">' + circleInner + '</span>';
+  html += '<div class="checklist-info" data-edit="' + l.id + '">';
+  html += '<span class="checklist-title">' + l.date + ' · ' + l.startTime + '-' + l.endTime + '</span>';
+  html += '<span class="checklist-meta">' + wd + ' · ' + dur + '小时' + '</span>';
+  html += '</div>';
+  html += '<span class="checklist-delete" data-delete="' + l.id + '" style="cursor:pointer;padding:4px 8px;color:var(--red);font-size:13px">删除</span>';
+  html += '</div>';
+
+  return html;
+}
+
+function calcDuration(start, end) {
+  var sh = parseInt(start.split(':')[0]), sm = parseInt(start.split(':')[1]);
+  var eh = parseInt(end.split(':')[0]), em = parseInt(end.split(':')[1]);
+  var mins = (eh * 60 + em) - (sh * 60 + sm);
+  var hrs = Math.round(mins / 60 * 10) / 10;
+  return hrs;
+}
+
+function bindDetailLessonEvents(s) {
+  // Toggle completed/upcoming
+  $$('#detail-modal .check-circle[data-toggle]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var lid = el.dataset.toggle;
+      var lesson = appData.lessons.find(function (l) { return l.id === lid; });
+      if (!lesson) return;
+      var newStatus = lesson.status === 'completed' ? 'upcoming' : 'completed';
+      updateLesson(lid, { status: newStatus });
+      showToast(newStatus === 'completed' ? '已标记为已上 ✓' : '已标记为未上');
+      refreshDetailList(s);
+    });
+  });
+
+  // Edit lesson
+  $$('#detail-modal .checklist-info[data-edit]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var lid = el.dataset.edit;
+      var lesson = appData.lessons.find(function (l) { return l.id === lid; });
+      if (!lesson) return;
+      showEditLessonModal(lesson, function () {
+        refreshDetailList(s);
+        renderAll();
+      });
+    });
+  });
+
+  // Delete lesson
+  $$('#detail-modal .checklist-delete[data-delete]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var lid = el.dataset.delete;
+      var lesson = appData.lessons.find(function (l) { return l.id === lid; });
+      if (!lesson) return;
+      if (confirm('删除「' + lesson.studentName + '」' + lesson.date + ' ' + lesson.startTime + ' 的课时？')) {
+        deleteLesson(lid);
+        showToast('已删除课时');
+        refreshDetailList(s);
+        renderAll();
+      }
+    });
+  });
+}
+
+function refreshDetailList(s) {
+  var container = $('#detail-lesson-list');
+  if (!container) return;
+  var lessons = appData.lessons
+    .filter(function (l) { return l.studentId === s.id; })
+    .sort(function (a, b) { return (b.date + b.startTime).localeCompare(a.date + a.startTime); });
+  var upcoming = lessons.filter(function (l) { return l.status === 'upcoming'; });
+  var completed = lessons.filter(function (l) { return l.status === 'completed'; });
+  container.innerHTML = renderDetailLessonList(upcoming, completed);
+
+  // Update header stats
+  var total = getStudentLessonCount(s.id);
+  var month = getStudentMonthCount(s.id);
+  var statsEl = $('#detail-modal .stats-sm');
+  if (statsEl) statsEl.textContent = '共 ' + total + ' 节课 · 本月 ' + month + ' 节';
+
+  bindDetailLessonEvents(s);
+}
+
+// ---- ADD LESSON FOR SPECIFIC STUDENT ----
+
+function showAddModalForStudent(s) {
+  showAddModal();
+  // Pre-select this student in the add modal
+  setTimeout(function () {
+    var sel = $('#add-student');
+    if (sel && sel.tagName === 'SELECT') {
+      // Set the select to this student
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === s.name) {
+          sel.selectedIndex = i;
+          sel.dispatchEvent(new Event('change'));
+          break;
+        }
+      }
+    }
+  }, 100);
+}
+
+// ---- EDIT LESSON MODAL ----
+
+function showEditLessonModal(lesson, onSaved) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'edit-lesson-modal';
+
+  var durMins = calcDuration(lesson.startTime, lesson.endTime) * 60;
+
+  var html = '<div class="modal-sheet">';
+  html += '<h2>编辑课时</h2>';
+
+  html += '<div class="form-group">';
+  html += '<label>学生</label>';
+  html += '<input type="text" value="' + lesson.studentName + '" disabled style="opacity:0.7">';
+  html += '</div>';
+
+  html += '<div class="form-group">';
+  html += '<label>日期</label>';
+  html += '<input type="date" id="edit-date" value="' + lesson.date + '">';
+  html += '</div>';
+
+  html += '<div class="form-group">';
+  html += '<label>开始时间</label>';
+  html += '<input type="time" id="edit-start" value="' + lesson.startTime + '">';
+  html += '</div>';
+
+  html += '<div class="form-group">';
+  html += '<label>时长（小时）</label>';
+  html += '<select id="edit-duration">';
+  [0.5, 1, 1.5, 2, 2.5, 3].forEach(function (h) {
+    var sel = Math.abs(h * 60 - durMins) < 10 ? ' selected' : '';
+    html += '<option value="' + (h * 60) + '"' + sel + '>' + h + ' 小时</option>';
+  });
+  html += '</select>';
+  html += '</div>';
+
+  // Status toggle
+  html += '<div class="form-group" style="display:flex;align-items:center;justify-content:space-between">';
+  html += '<label style="margin-bottom:0">已上完</label>';
+  html += '<label class="toggle-switch"><input type="checkbox" id="edit-completed"' + (lesson.status === 'completed' ? ' checked' : '') + '><span class="toggle-track"></span></label>';
+  html += '</div>';
+
+  html += '<button class="btn btn-primary" id="btn-edit-save">保存修改</button>';
+  html += '<button class="btn btn-secondary" id="btn-edit-cancel">取消</button>';
+  html += '<button class="btn btn-danger" id="btn-edit-delete">删除此课时</button>';
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeEditModal();
+  });
+
+  $('#btn-edit-cancel').addEventListener('click', closeEditModal);
+
+  $('#btn-edit-save').addEventListener('click', function () {
+    var date = $('#edit-date').value;
+    var startTime = $('#edit-start').value;
+    var durationMins = parseInt($('#edit-duration').value);
+    var isCompleted = $('#edit-completed').checked;
+
+    if (!date || !startTime) { alert('请填写日期和时间'); return; }
+
+    var endTime = addMinutes(startTime, durationMins);
+    updateLesson(lesson.id, {
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      duration: durationMins,
+      status: isCompleted ? 'completed' : 'upcoming',
+      calendarAdded: isCompleted ? lesson.calendarAdded : false, // reset calendar if re-opened
+    });
+
+    closeEditModal();
+    showToast('课时已更新 ✓');
+    if (onSaved) onSaved();
+  });
+
+  $('#btn-edit-delete').addEventListener('click', function () {
+    if (confirm('确定删除这个课时记录吗？')) {
+      deleteLesson(lesson.id);
+      closeEditModal();
+      showToast('已删除课时');
+      if (onSaved) onSaved();
+    }
+  });
+
+  function closeEditModal() {
+    var m = $('#edit-lesson-modal');
     if (m) document.body.removeChild(m);
   }
 }
@@ -763,6 +1010,12 @@ function showAddModal() {
     html += '<option value="' + (h * 60) + '"' + (h === 1 ? ' selected' : '') + '>' + h + ' 小时</option>';
   });
   html += '</select>';
+  html += '</div>';
+
+  // Already completed toggle
+  html += '<div class="form-group" style="display:flex;align-items:center;justify-content:space-between">';
+  html += '<label style="margin-bottom:0">这节课已经上完了</label>';
+  html += '<label class="toggle-switch"><input type="checkbox" id="add-completed"><span class="toggle-track"></span></label>';
   html += '</div>';
 
   // Buttons
@@ -847,6 +1100,7 @@ function showAddModal() {
     var endTime = addMinutes(startTime, durationMins);
     var student = findOrCreateStudent(studentName);
 
+    var isCompleted = $('#add-completed').checked;
     var lesson = {
       studentId: student.id,
       studentName: student.name,
@@ -854,12 +1108,16 @@ function showAddModal() {
       startTime: startTime,
       endTime: endTime,
       duration: durationMins,
-      status: 'upcoming',
+      status: isCompleted ? 'completed' : 'upcoming',
     };
 
     addLesson(lesson);
     closeAddModal();
-    showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+    if (isCompleted) {
+      showToast('已添加历史课时 ✓');
+    } else {
+      showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+    }
     renderAll();
   });
 
@@ -920,6 +1178,12 @@ function showConfirmModal(parsed, onSuccess) {
   });
   html += '</select></div>';
 
+  // Completed toggle
+  html += '<div class="form-group" style="display:flex;align-items:center;justify-content:space-between">';
+  html += '<label style="margin-bottom:0">这节课已经上完了</label>';
+  html += '<label class="toggle-switch"><input type="checkbox" id="cfm-completed"><span class="toggle-track"></span></label>';
+  html += '</div>';
+
   html += '<button class="btn btn-primary" id="btn-cfm-save">确认保存</button>';
   html += '<button class="btn btn-secondary" id="btn-cfm-cancel">取消</button>';
   html += '</div>';
@@ -973,6 +1237,7 @@ function showConfirmModal(parsed, onSuccess) {
 
     var endTime = addMinutes(startTime, durationMins);
     var student = findOrCreateStudent(studentName);
+    var isCompleted = $('#cfm-completed').checked;
 
     var lesson = {
       studentId: student.id,
@@ -981,12 +1246,16 @@ function showConfirmModal(parsed, onSuccess) {
       startTime: startTime,
       endTime: endTime,
       duration: durationMins,
-      status: 'upcoming',
+      status: isCompleted ? 'completed' : 'upcoming',
     };
 
     addLesson(lesson);
     document.body.removeChild(overlay);
-    showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+    if (isCompleted) {
+      showToast('已添加历史课时 ✓');
+    } else {
+      showToast('课程已保存，点击课程旁的按钮添加到日历 📅');
+    }
     renderAll();
 
     if (onSuccess) onSuccess();
