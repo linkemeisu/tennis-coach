@@ -430,8 +430,12 @@ function renderHome() {
     html += '</div>';
   }
 
-  // Today
-  html += '<div class="section-title">今日</div>';
+  // Today — collapsible
+  html += '<div class="section-title" id="today-toggle" style="cursor:pointer;display:flex;align-items:center;gap:4px">';
+  html += '今日 <span id="today-arrow" style="font-size:11px;transition:transform .2s">&#9660;</span>';
+  if (todayLessons.length > 0) html += '<span style="font-weight:400;color:var(--text-tertiary);font-size:12px;margin-left:4px">' + todayLessons.length + '节</span>';
+  html += '</div>';
+  html += '<div id="today-content">';
   if (todayLessons.length === 0) {
     html += '<div class="card"><div class="empty" style="padding:20px"><p>今天没有课程</p></div></div>';
   } else {
@@ -439,6 +443,7 @@ function renderHome() {
     todayLessons.forEach(function (l) { html += lessonItemHTML(l); });
     html += '</div>';
   }
+  html += '</div>';
 
   // Upcoming — group by date, Apple Calendar style
   const future = upcoming.filter(function (l) { return l.date > today; });
@@ -454,9 +459,10 @@ function renderHome() {
     dates.forEach(function (date) {
       var d = new Date(date + 'T00:00:00');
       var weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-      var label = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + weekdays[d.getDay()];
-      if (date === offsetDate(1)) label = '明天 ' + weekdays[d.getDay()];
-      if (date === offsetDate(2)) label = '后天 ' + weekdays[d.getDay()];
+      var md = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+      var label = md + ' ' + weekdays[d.getDay()];
+      if (date === offsetDate(1)) label = '明天 ' + weekdays[d.getDay()] + ' · ' + md;
+      if (date === offsetDate(2)) label = '后天 ' + weekdays[d.getDay()] + ' · ' + md;
 
       html += '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin:14px 0 6px 2px">' + label + '</div>';
       html += '<div class="card">';
@@ -466,6 +472,23 @@ function renderHome() {
   }
 
   main.innerHTML = html;
+
+  // Today toggle
+  var todayToggle = $('#today-toggle');
+  if (todayToggle) {
+    todayToggle.addEventListener('click', function () {
+      var content = $('#today-content');
+      var arrow = $('#today-arrow');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        arrow.style.transform = 'rotate(0deg)';
+      } else {
+        content.style.display = 'none';
+        arrow.style.transform = 'rotate(-90deg)';
+      }
+    });
+  }
+
   bindLessonActions();
 }
 
@@ -545,6 +568,14 @@ function renderStudentList() {
   html += '<button class="btn btn-secondary" id="btn-add-student">+ 添加学生</button>';
   html += '</div>';
 
+  // Inline add form (hidden by default)
+  html += '<div id="inline-add-student" class="card" style="display:none;margin-top:8px;padding:12px">';
+  html += '<div class="inline-form">';
+  html += '<input type="text" id="new-student-name" placeholder="输入学生姓名">';
+  html += '<button id="btn-save-student">添加</button>';
+  html += '</div>';
+  html += '</div>';
+
   main.innerHTML = html;
 
   // Bind student clicks
@@ -554,9 +585,29 @@ function renderStudentList() {
     });
   });
 
-  // Bind add student -> directly open add lesson modal
+  // Bind add student — toggle inline form
   $('#btn-add-student').addEventListener('click', function () {
-    showAddModalNewStudent();
+    var inline = $('#inline-add-student');
+    inline.style.display = inline.style.display === 'none' ? 'block' : 'none';
+    if (inline.style.display === 'block') {
+      setTimeout(function () { $('#new-student-name').focus(); }, 100);
+    }
+  });
+
+  // Save new student
+  $('#btn-save-student').addEventListener('click', function () {
+    var input = $('#new-student-name');
+    var name = input.value.trim();
+    if (!name) { alert('请输入学生姓名'); return; }
+    addStudent(name);
+    input.value = '';
+    $('#inline-add-student').style.display = 'none';
+    showToast('已添加：' + name);
+    renderStudentList();
+  });
+
+  $('#new-student-name').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') $('#btn-save-student').click();
   });
 }
 
