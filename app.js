@@ -422,6 +422,14 @@ function renderHome() {
   html += '<div class="stat-card"><div class="num">' + appData.students.length + '</div><div class="label">学生人数</div></div>';
   html += '</div>';
 
+  // Batch calendar for unsynced upcoming
+  var unsyncedUpcoming = upcoming.filter(function (l) { return !l.calendarAdded; });
+  if (unsyncedUpcoming.length > 0) {
+    html += '<div class="batch-bar">';
+    html += '<button id="btn-batch-calendar">全部添加到日历（' + unsyncedUpcoming.length + '节）</button>';
+    html += '</div>';
+  }
+
   // Today
   html += '<div class="section-title">今日</div>';
   if (todayLessons.length === 0) {
@@ -567,9 +575,10 @@ function renderStudentList() {
     var input = $('#new-student-name');
     var name = input.value.trim();
     if (!name) { alert('请输入学生姓名'); return; }
-    addStudent(name);
+    var s = addStudent(name);
     showToast('已添加学生：' + name);
-    renderStudentList();
+    // Jump to add lesson page with this student pre-selected
+    showAddModalForStudent(s);
   });
 
   $('#new-student-name').addEventListener('keydown', function (e) {

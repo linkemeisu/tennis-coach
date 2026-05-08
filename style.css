@@ -97,7 +97,7 @@ nav.tab-bar button {
   cursor: pointer;
   letter-spacing: 0.3px;
 }
-nav.tab-bar button .icon { font-size: 5px; line-height: 1; opacity: 0; transition: opacity .15s; }
+nav.tab-bar button .icon { display: flex; align-items: center; justify-content: center; opacity: .35; transition: opacity .15s; }
 nav.tab-bar button.active { color: var(--text); }
 nav.tab-bar button.active .icon { opacity: 1; }
 
