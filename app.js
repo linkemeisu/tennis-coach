@@ -1126,7 +1126,10 @@ function showAddModal() {
     html += '<input type="text" id="add-student" placeholder="学生姓名">';
   }
   html += '<div id="new-student-wrap" style="display:none;margin-top:8px">';
-  html += '<input type="text" id="add-student-new" placeholder="输入新学生姓名" style="width:100%;padding:12px;border:1px solid #E0E0E0;border-radius:10px;font-size:16px;background:#F9F9F9">';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<input type="text" id="add-student-new" placeholder="输入新学生姓名" style="flex:1;padding:12px;border:1px solid #E0E0E0;border-radius:10px;font-size:16px;background:#F9F9F9">';
+  html += '<button id="btn-confirm-student" style="width:44px;border:1px solid var(--green);border-radius:10px;background:var(--green);color:#fff;font-size:20px;cursor:pointer;flex-shrink:0">&#10003;</button>';
+  html += '</div>';
   html += '</div>';
   html += '</div>';
 
@@ -1182,6 +1185,16 @@ function showAddModal() {
   });
 
   $('#btn-close-modal').addEventListener('click', closeAddModal);
+
+  // Confirm student name only (without adding lesson)
+  $('#btn-confirm-student').addEventListener('click', function () {
+    var name = getAddStudentName();
+    if (!name) { alert('请输入学生姓名'); return; }
+    findOrCreateStudent(name);
+    showToast('已添加学生：' + name);
+    closeAddModal();
+    renderAll();
+  });
 
   // Voice input
   $('#btn-voice').addEventListener('click', function () {
@@ -1333,6 +1346,7 @@ function showAddModal() {
     }
     var m = $('#add-modal');
     if (m) document.body.removeChild(m);
+    renderAll();
   }
 }
 
@@ -1414,11 +1428,13 @@ function showConfirmModal(parsed, onSuccess) {
   overlay.addEventListener('click', function (e) {
     if (e.target === overlay) {
       document.body.removeChild(overlay);
+      renderAll();
     }
   });
 
   $('#btn-cfm-cancel').addEventListener('click', function () {
     document.body.removeChild(overlay);
+    renderAll();
   });
 
   // Student select for confirm modal
