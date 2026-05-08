@@ -13,6 +13,57 @@ function loadData() {
   if (raw) {
     try { appData = JSON.parse(raw); } catch (e) { /* ignore */ }
   }
+  // First-time: load demo data so the app isn't empty
+  if (appData.students.length === 0) {
+    appData = getDemoData();
+    saveData();
+  }
+}
+
+function getDemoData() {
+  var t = todayStr();
+  var y = offsetDate(-1);
+  var d1 = { students: [], lessons: [] };
+
+  // Demo students
+  var s1 = { id: 'demo1', name: '张三', createdAt: t };
+  var s2 = { id: 'demo2', name: '李四', createdAt: t };
+  var s3 = { id: 'demo3', name: '王五', createdAt: t };
+  d1.students = [s1, s2, s3];
+
+  function mkLesson(s, date, start, durMin, status) {
+    var sh = start.split(':')[0], sm = start.split(':')[1];
+    var eh = parseInt(sh), em = parseInt(sm) + durMin;
+    eh += Math.floor(em / 60); em = em % 60;
+    var end = eh.toString().padStart(2,'0') + ':' + em.toString().padStart(2,'0');
+    return {
+      id: 'demo' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+      studentId: s.id, studentName: s.name,
+      date: date, startTime: start, endTime: end,
+      duration: durMin, status: status || 'upcoming',
+      calendarAdded: false, createdAt: new Date().toISOString()
+    };
+  }
+
+  // Today's lessons
+  d1.lessons.push(mkLesson(s1, t, '09:00', 60));
+  d1.lessons.push(mkLesson(s2, t, '14:00', 90));
+  d1.lessons.push(mkLesson(s3, t, '16:00', 60));
+
+  // Upcoming
+  d1.lessons.push(mkLesson(s1, offsetDate(1), '10:00', 60));
+  d1.lessons.push(mkLesson(s2, offsetDate(2), '09:00', 60));
+  d1.lessons.push(mkLesson(s3, offsetDate(3), '15:00', 120));
+  d1.lessons.push(mkLesson(s1, offsetDate(5), '08:00', 60));
+
+  // Completed (past)
+  d1.lessons.push(mkLesson(s2, y, '10:00', 60, 'completed'));
+  d1.lessons.push(mkLesson(s3, y, '14:00', 60, 'completed'));
+  d1.lessons.push(mkLesson(s1, offsetDate(-2), '09:00', 90, 'completed'));
+  d1.lessons.push(mkLesson(s2, offsetDate(-3), '15:00', 60, 'completed'));
+  d1.lessons.push(mkLesson(s3, offsetDate(-4), '11:00', 60, 'completed'));
+
+  return d1;
 }
 
 function saveData() {
@@ -602,6 +653,12 @@ function renderStudentList() {
   html += '</div>';
   html += '</div>';
 
+  // Export / Import
+  html += '<div style="display:flex;gap:8px;margin-top:12px">';
+  html += '<button class="btn btn-secondary" id="btn-export" style="flex:1;font-size:13px">导出数据</button>';
+  html += '<button class="btn btn-secondary" id="btn-import" style="flex:1;font-size:13px">导入数据</button>';
+  html += '</div>';
+
   main.innerHTML = html;
 
   // Bind student clicks
@@ -635,6 +692,77 @@ function renderStudentList() {
   $('#new-student-name').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') $('#btn-save-student').click();
   });
+
+  // Export
+  $('#btn-export').addEventListener('click', function () {
+    var json = JSON.stringify(appData, null, 2);
+    // Try Web Share API first (works on iPhone)
+    if (navigator.share) {
+      var blob = new Blob([json], { type: 'application/json' });
+      var file = new File([blob], 'tennis-backup.json', { type: 'application/json' });
+      navigator.share({ files: [file], title: '网球排课数据备份' }).catch(function () {
+        // Fallback: copy to clipboard
+        copyExport(json);
+      });
+    } else {
+      copyExport(json);
+    }
+  });
+
+  // Import
+  $('#btn-import').addEventListener('click', function () {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.addEventListener('change', function () {
+      var file = input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          var data = JSON.parse(e.target.result);
+          if (data.students && data.lessons) {
+            if (confirm('导入数据将覆盖当前数据，确定继续？\n学生：' + data.students.length + '人\n课程：' + data.lessons.length + '节')) {
+              appData = data;
+              saveData();
+              renderAll();
+              showToast('数据已导入');
+            }
+          } else {
+            alert('文件格式不正确');
+          }
+        } catch (err) {
+          alert('解析失败，请检查文件');
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
+}
+
+function copyExport(json) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json).then(function () {
+      showToast('数据已复制到剪贴板，发送给另一台设备后导入');
+    }).catch(function () {
+      fallbackCopy(json);
+    });
+  } else {
+    fallbackCopy(json);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('数据已复制到剪贴板');
 }
 
 // ---- LESSON ITEM HTML (minimal) ----
