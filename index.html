@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="网球排课">
+  <meta name="theme-color" content="#2E7D32">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <title>网球排课</title>
+</head>
+<body>
+
+  <header>
+    <h1>🎾 网球排课</h1>
+  </header>
+
+  <main></main>
+
+  <button class="fab" id="fab" aria-label="添加课程">+</button>
+
+  <nav class="tab-bar">
+    <button class="active" data-tab="home">
+      <span class="icon">🏠</span>首页
+    </button>
+    <button data-tab="lessons">
+      <span class="icon">📋</span>课程
+    </button>
+    <button data-tab="students">
+      <span class="icon">👥</span>学生
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

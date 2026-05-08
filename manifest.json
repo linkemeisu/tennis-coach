@@ -1,0 +1,18 @@
+{
+  "name": "网球排课",
+  "short_name": "网球排课",
+  "description": "网球教练排课管理工具",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2E7D32",
+  "background_color": "#F2F2F7",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
