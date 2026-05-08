@@ -68,6 +68,7 @@ function getDemoData() {
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+  autoPushOnChange();
 }
 
 function uid() {
@@ -653,10 +654,18 @@ function renderStudentList() {
   html += '</div>';
   html += '</div>';
 
-  // Export / Import
-  html += '<div style="display:flex;gap:8px;margin-top:12px">';
-  html += '<button class="btn btn-secondary" id="btn-export" style="flex:1;font-size:13px">导出数据</button>';
-  html += '<button class="btn btn-secondary" id="btn-import" style="flex:1;font-size:13px">导入数据</button>';
+  // Sync section
+  html += '<div class="card" style="margin-top:12px;padding:12px 16px">';
+  html += '<div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">云同步</div>';
+  html += '<div id="sync-status" style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px">未设置同步</div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<input type="password" id="sync-token" placeholder="粘贴 GitHub Token" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#FAFAFA">';
+  html += '<button class="btn btn-primary" id="btn-sync-save" style="width:auto;padding:8px 14px;font-size:12px">保存</button>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:8px">';
+  html += '<button class="btn btn-secondary" id="btn-sync-push" style="flex:1;font-size:12px;padding:8px">上传到云端</button>';
+  html += '<button class="btn btn-secondary" id="btn-sync-pull" style="flex:1;font-size:12px;padding:8px">从云端下载</button>';
+  html += '</div>';
   html += '</div>';
 
   main.innerHTML = html;
@@ -693,76 +702,116 @@ function renderStudentList() {
     if (e.key === 'Enter') $('#btn-save-student').click();
   });
 
-  // Export
-  $('#btn-export').addEventListener('click', function () {
-    var json = JSON.stringify(appData, null, 2);
-    // Try Web Share API first (works on iPhone)
-    if (navigator.share) {
-      var blob = new Blob([json], { type: 'application/json' });
-      var file = new File([blob], 'tennis-backup.json', { type: 'application/json' });
-      navigator.share({ files: [file], title: '网球排课数据备份' }).catch(function () {
-        // Fallback: copy to clipboard
-        copyExport(json);
-      });
-    } else {
-      copyExport(json);
-    }
+  // Sync: save token
+  $('#btn-sync-save').addEventListener('click', function () {
+    var token = $('#sync-token').value.trim();
+    if (!token) { alert('请粘贴 GitHub Token'); return; }
+    localStorage.setItem('gh_sync_token', token);
+    $('#sync-token').value = '';
+    $('#sync-status').textContent = '已配置，自动同步中...';
+    testSync(token);
   });
 
-  // Import
-  $('#btn-import').addEventListener('click', function () {
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    input.addEventListener('change', function () {
-      var file = input.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          var data = JSON.parse(e.target.result);
-          if (data.students && data.lessons) {
-            if (confirm('导入数据将覆盖当前数据，确定继续？\n学生：' + data.students.length + '人\n课程：' + data.lessons.length + '节')) {
-              appData = data;
-              saveData();
-              renderAll();
-              showToast('数据已导入');
-            }
-          } else {
-            alert('文件格式不正确');
-          }
-        } catch (err) {
-          alert('解析失败，请检查文件');
-        }
-      };
-      reader.readAsText(file);
+  // Sync: push
+  $('#btn-sync-push').addEventListener('click', function () {
+    var token = localStorage.getItem('gh_sync_token');
+    if (!token) { alert('请先配置 GitHub Token'); return; }
+    $('#sync-status').textContent = '正在上传...';
+    pushToGitHub(token, function (ok) {
+      $('#sync-status').textContent = ok ? '已上传到云端' : '上传失败，请检查网络';
     });
-    input.click();
   });
-}
 
-function copyExport(json) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(json).then(function () {
-      showToast('数据已复制到剪贴板，发送给另一台设备后导入');
-    }).catch(function () {
-      fallbackCopy(json);
+  // Sync: pull
+  $('#btn-sync-pull').addEventListener('click', function () {
+    var token = localStorage.getItem('gh_sync_token');
+    if (!token) { alert('请先配置 GitHub Token'); return; }
+    $('#sync-status').textContent = '正在下载...';
+    pullFromGitHub(token, function (ok) {
+      if (ok) {
+        $('#sync-status').textContent = '已从云端同步';
+        renderAll();
+      } else {
+        $('#sync-status').textContent = '下载失败或云端无数据';
+      }
     });
-  } else {
-    fallbackCopy(json);
+  });
+
+  // Restore saved token indicator
+  var savedToken = localStorage.getItem('gh_sync_token');
+  if (savedToken) {
+    $('#sync-status').textContent = '已配置自动同步';
   }
 }
 
-function fallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.left = '-9999px';
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-  showToast('数据已复制到剪贴板');
+// ==================== GITHUB SYNC ====================
+
+function pushToGitHub(token, cb) {
+  var json = JSON.stringify(appData, null, 2);
+  var content = btoa(unescape(encodeURIComponent(json)));
+  var api = 'https://api.github.com/repos/linkemeisu/tennis-coach/contents/data.json';
+
+  // Get current SHA
+  fetch(api, { headers: { Authorization: 'token ' + token } }).then(function (r) {
+    return r.json();
+  }).then(function (info) {
+    var body = { message: 'sync data', content: content, branch: 'main' };
+    if (info.sha) body.sha = info.sha;
+    return fetch(api, {
+      method: 'PUT',
+      headers: { Authorization: 'token ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }).then(function (r) {
+    cb(r.ok);
+  }).catch(function () { cb(false); });
+}
+
+function pullFromGitHub(token, cb) {
+  fetch('https://api.github.com/repos/linkemeisu/tennis-coach/contents/data.json', {
+    headers: { Authorization: 'token ' + token, 'Cache-Control': 'no-cache' }
+  }).then(function (r) {
+    if (!r.ok) { cb(false); return; }
+    return r.json();
+  }).then(function (info) {
+    if (!info || !info.content) { cb(false); return; }
+    var json = decodeURIComponent(escape(atob(info.content)));
+    var data = JSON.parse(json);
+    if (data.students && data.lessons) {
+      appData = data;
+      saveData();
+      cb(true);
+    } else {
+      cb(false);
+    }
+  }).catch(function () { cb(false); });
+}
+
+function testSync(token) {
+  pushToGitHub(token, function (ok) {
+    if (ok) {
+      $('#sync-status').textContent = '云端同步已就绪';
+    } else {
+      $('#sync-status').textContent = '连接失败，请检查 Token 和网络';
+    }
+  });
+}
+
+function autoPullOnStart() {
+  var token = localStorage.getItem('gh_sync_token');
+  if (!token) return;
+  pullFromGitHub(token, function (ok) {
+    if (ok) {
+      renderAll();
+      console.log('Auto-synced from cloud');
+    }
+  });
+}
+
+function autoPushOnChange() {
+  var token = localStorage.getItem('gh_sync_token');
+  if (!token) return;
+  pushToGitHub(token, function () {});
 }
 
 // ---- LESSON ITEM HTML (minimal) ----
@@ -1715,6 +1764,8 @@ function switchTab(tab) {
 function init() {
   loadData();
   archiveCompletedLessons();
+  // Auto-pull from cloud if sync is set up
+  autoPullOnStart();
 
   // Bind tab buttons
   $$('nav.tab-bar button').forEach(function (btn) {
