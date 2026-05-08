@@ -1152,6 +1152,7 @@ function showConfirmModal(parsed, onSuccess) {
 
   // Editable fields
   var students = getStudents();
+  var studentExists = students.some(function (s) { return s.name === parsed.studentName; });
   html += '<div class="form-group"><label>学生</label>';
   if (students.length > 0) {
     html += '<select id="cfm-student">';
@@ -1159,10 +1160,13 @@ function showConfirmModal(parsed, onSuccess) {
       var sel = s.name === parsed.studentName ? ' selected' : '';
       html += '<option value="' + s.name + '"' + sel + '>' + s.name + '</option>';
     });
-    html += '<option value="__new__">+ 新学生</option>';
+    var newSel = (!studentExists && parsed.studentName) ? ' selected' : '';
+    html += '<option value="__new__"' + newSel + '>+ 新学生</option>';
     html += '</select>';
-    html += '<div id="cfm-new-student-wrap" style="display:none;margin-top:8px">';
-    html += '<input type="text" id="cfm-student-new" placeholder="输入新学生姓名" style="width:100%;padding:12px;border:1px solid #E0E0E0;border-radius:10px;font-size:16px;background:#F9F9F9">';
+    var wrapStyle = (!studentExists && parsed.studentName) ? 'display:block' : 'display:none';
+    var newVal = (!studentExists && parsed.studentName) ? parsed.studentName : '';
+    html += '<div id="cfm-new-student-wrap" style="' + wrapStyle + ';margin-top:8px">';
+    html += '<input type="text" id="cfm-student-new" placeholder="输入新学生姓名" value="' + newVal + '" style="width:100%;padding:12px;border:1px solid #E0E0E0;border-radius:10px;font-size:16px;background:#F9F9F9">';
     html += '</div>';
   } else {
     html += '<input type="text" id="cfm-student" value="' + parsed.studentName + '">';
