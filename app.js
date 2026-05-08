@@ -1084,6 +1084,17 @@ function showAddModal() {
   html += '<label class="toggle-switch"><input type="checkbox" id="add-completed"><span class="toggle-track"></span></label>';
   html += '</div>';
 
+  // Quick counter (hidden until "已上完" is toggled)
+  html += '<div id="add-quick-counter" class="quick-counter card" style="display:none;margin-bottom:12px;text-align:center;padding:12px 16px">';
+  html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">批量添加已上课时（只加次数，不计日期）</div>';
+  html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px">';
+  html += '<button class="counter-btn minus" id="add-qminus">−1</button>';
+  html += '<span id="add-quick-count" style="font-size:26px;font-weight:700;min-width:36px;text-align:center;color:var(--green)">0</span>';
+  html += '<button class="counter-btn plus" id="add-qplus1">+1</button>';
+  html += '<button class="counter-btn plus" id="add-qplus5">+5</button>';
+  html += '</div>';
+  html += '</div>';
+
   // Buttons
   html += '<button class="btn btn-primary" id="btn-save-lesson">保存课程</button>';
   html += '<button class="btn btn-secondary" id="btn-close-modal">取消</button>';
@@ -1127,6 +1138,9 @@ function showAddModal() {
     }, 10000);
   });
 
+  // Track quick-counter additions in this session
+  var sessionIds = [];
+
   // Student select toggle
   var studentSelect = $('#add-student');
   if (studentSelect.tagName === 'SELECT') {
@@ -1141,20 +1155,65 @@ function showAddModal() {
     });
   }
 
+  // Toggle quick counter visibility when "已上完" is checked
+  var completedCheckbox = $('#add-completed');
+  completedCheckbox.addEventListener('change', function () {
+    var counter = $('#add-quick-counter');
+    counter.style.display = completedCheckbox.checked ? 'block' : 'none';
+  });
+
+  // Quick counter handlers (in add modal)
+  var qCountEl = $('#add-quick-count');
+  function updateQCount() { qCountEl.textContent = sessionIds.length; }
+  function getAddStudentName() {
+    if (studentSelect.tagName === 'SELECT') {
+      if (studentSelect.value === '__new__') return $('#add-student-new').value.trim();
+      return studentSelect.value;
+    }
+    return studentSelect.value.trim();
+  }
+
+  $('#add-qplus1').addEventListener('click', function () {
+    var name = getAddStudentName();
+    if (!name) { alert('请先选择学生'); return; }
+    var s = findOrCreateStudent(name);
+    var lesson = quickAddCompleted(s.id, s.name);
+    sessionIds.push(lesson.id);
+    updateQCount();
+  });
+
+  $('#add-qplus5').addEventListener('click', function () {
+    var name = getAddStudentName();
+    if (!name) { alert('请先选择学生'); return; }
+    var s = findOrCreateStudent(name);
+    for (var i = 0; i < 5; i++) {
+      var lesson = quickAddCompleted(s.id, s.name);
+      sessionIds.push(lesson.id);
+    }
+    updateQCount();
+  });
+
+  $('#add-qminus').addEventListener('click', function () {
+    if (sessionIds.length === 0) return;
+    var lastId = sessionIds.pop();
+    deleteLesson(lastId);
+    updateQCount();
+  });
+
   // Save lesson
   $('#btn-save-lesson').addEventListener('click', function () {
-    var studentName;
-    if (studentSelect.tagName === 'SELECT') {
-      if (studentSelect.value === '__new__') {
-        studentName = $('#add-student-new').value.trim();
-      } else {
-        studentName = studentSelect.value;
-      }
-    } else {
-      studentName = studentSelect.value.trim();
-    }
-
+    var studentName = getAddStudentName();
     if (!studentName) { alert('请选择或输入学生姓名'); return; }
+
+    var isCompleted = completedCheckbox.checked;
+
+    // If quick counter was used, just close (lessons already saved)
+    if (isCompleted && sessionIds.length > 0) {
+      closeAddModal();
+      showToast('已添加 ' + sessionIds.length + ' 节已上课时 ✓');
+      renderAll();
+      return;
+    }
 
     var date = $('#add-date').value;
     var startTime = $('#add-start').value;
@@ -1166,7 +1225,6 @@ function showAddModal() {
     var endTime = addMinutes(startTime, durationMins);
     var student = findOrCreateStudent(studentName);
 
-    var isCompleted = $('#add-completed').checked;
     var lesson = {
       studentId: student.id,
       studentName: student.name,
