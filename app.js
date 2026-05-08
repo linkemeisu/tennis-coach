@@ -545,14 +545,6 @@ function renderStudentList() {
   html += '<button class="btn btn-secondary" id="btn-add-student">+ 添加学生</button>';
   html += '</div>';
 
-  // Inline add form (hidden by default)
-  html += '<div id="inline-add-student" class="card" style="display:none;margin-top:10px">';
-  html += '<div class="inline-form">';
-  html += '<input type="text" id="new-student-name" placeholder="输入学生姓名">';
-  html += '<button id="btn-save-student">添加</button>';
-  html += '</div>';
-  html += '</div>';
-
   main.innerHTML = html;
 
   // Bind student clicks
@@ -562,27 +554,9 @@ function renderStudentList() {
     });
   });
 
-  // Bind add student
+  // Bind add student -> directly open add lesson modal
   $('#btn-add-student').addEventListener('click', function () {
-    var inline = $('#inline-add-student');
-    inline.style.display = inline.style.display === 'none' ? 'block' : 'none';
-    if (inline.style.display === 'block') {
-      setTimeout(function () { $('#new-student-name').focus(); }, 100);
-    }
-  });
-
-  $('#btn-save-student').addEventListener('click', function () {
-    var input = $('#new-student-name');
-    var name = input.value.trim();
-    if (!name) { alert('请输入学生姓名'); return; }
-    var s = addStudent(name);
-    showToast('已添加学生：' + name);
-    // Jump to add lesson page with this student pre-selected
-    showAddModalForStudent(s);
-  });
-
-  $('#new-student-name').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') $('#btn-save-student').click();
+    showAddModalNewStudent();
   });
 }
 
@@ -982,11 +956,9 @@ function refreshDetailList(s) {
 
 function showAddModalForStudent(s) {
   showAddModal();
-  // Pre-select this student in the add modal
   setTimeout(function () {
     var sel = $('#add-student');
     if (sel && sel.tagName === 'SELECT') {
-      // Set the select to this student
       for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].value === s.name) {
           sel.selectedIndex = i;
@@ -994,6 +966,22 @@ function showAddModalForStudent(s) {
           break;
         }
       }
+    }
+  }, 100);
+}
+
+function showAddModalNewStudent() {
+  showAddModal();
+  setTimeout(function () {
+    var sel = $('#add-student');
+    if (sel && sel.tagName === 'SELECT') {
+      // Select "+ 新学生" option
+      sel.value = '__new__';
+      sel.dispatchEvent(new Event('change'));
+      setTimeout(function () { $('#add-student-new').focus(); }, 100);
+    } else if (sel) {
+      // No existing students - it's an input, just focus it
+      sel.focus();
     }
   }, 100);
 }
@@ -1243,6 +1231,12 @@ function showAddModal() {
   completedCheckbox.addEventListener('change', function () {
     var counter = $('#add-quick-counter');
     counter.style.display = completedCheckbox.checked ? 'block' : 'none';
+    // Auto-set date to yesterday for completed lessons
+    if (completedCheckbox.checked) {
+      $('#add-date').value = offsetDate(-1);
+    } else {
+      $('#add-date').value = today;
+    }
   });
 
   // Quick counter handlers (in add modal)
@@ -1329,6 +1323,11 @@ function showAddModal() {
   });
 
   function closeAddModal() {
+    // If a new student name was typed but no lesson saved, still create the student
+    var newInput = $('#add-student-new');
+    if (newInput && newInput.value.trim()) {
+      findOrCreateStudent(newInput.value.trim());
+    }
     var m = $('#add-modal');
     if (m) document.body.removeChild(m);
   }
@@ -1340,7 +1339,11 @@ function showConfirmModal(parsed, onSuccess) {
   // Prevent duplicate modals
   if ($('#confirm-modal')) return;
 
-  // Close add modal first
+  // Save pending new student name, then close add modal
+  var newInput = $('#add-student-new');
+  if (newInput && newInput.value.trim()) {
+    findOrCreateStudent(newInput.value.trim());
+  }
   var addModal = $('#add-modal');
   if (addModal) document.body.removeChild(addModal);
 
