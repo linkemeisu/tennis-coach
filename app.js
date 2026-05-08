@@ -1016,6 +1016,9 @@ function showEditLessonModal(lesson, onSaved) {
 // ==================== ADD LESSON MODAL ====================
 
 function showAddModal() {
+  // Prevent duplicate modals
+  if ($('#add-modal')) return;
+
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'add-modal';
@@ -1042,7 +1045,7 @@ function showAddModal() {
   html += '<label>学生</label>';
   if (students.length > 0) {
     html += '<select id="add-student">';
-    html += '<option value="">选择学生</option>';
+    html += '<option value="" selected>选择学生</option>';
     students.forEach(function (s) {
       html += '<option value="' + s.name + '">' + s.name + '</option>';
     });
@@ -1254,6 +1257,9 @@ function showAddModal() {
 // ---- CONFIRM MODAL (after voice parsing) ----
 
 function showConfirmModal(parsed, onSuccess) {
+  // Prevent duplicate modals
+  if ($('#confirm-modal')) return;
+
   // Close add modal first
   var addModal = $('#add-modal');
   if (addModal) document.body.removeChild(addModal);
