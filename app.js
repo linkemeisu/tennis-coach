@@ -636,6 +636,23 @@ function bindLessonActions() {
   });
 }
 
+// ---- QUICK COMPLETED LESSON HELPERS ----
+
+function quickAddCompleted(studentId, studentName) {
+  var today = todayStr();
+  var lesson = {
+    studentId: studentId,
+    studentName: studentName,
+    date: today,
+    startTime: '09:00',
+    endTime: '10:00',
+    duration: 60,
+    status: 'completed',
+    calendarAdded: false,
+  };
+  return addLesson(lesson);
+}
+
 // ---- STUDENT DETAIL (Apple Notes checklist style) ----
 
 function showStudentDetail(sid) {
@@ -654,6 +671,9 @@ function showStudentDetail(sid) {
   overlay.className = 'modal-overlay';
   overlay.id = 'detail-modal';
 
+  // Track lessons added during this session (for undo)
+  var sessionIds = [];
+
   var html = '<div class="modal-sheet" style="padding-bottom:20px">';
 
   // Header
@@ -663,9 +683,20 @@ function showStudentDetail(sid) {
   html += '<div class="stats-sm">共 ' + total + ' 节课 · 本月 ' + month + ' 节</div>';
   html += '</div>';
 
+  // Quick counter for completed lessons
+  html += '<div class="quick-counter card" style="margin-bottom:12px;text-align:center;padding:12px 16px">';
+  html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">快速补录已上课时（不计日期，只加次数）</div>';
+  html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px">';
+  html += '<button class="counter-btn minus" id="btn-qminus">−1</button>';
+  html += '<span id="quick-count" style="font-size:26px;font-weight:700;min-width:36px;text-align:center;color:var(--green)">0</span>';
+  html += '<button class="counter-btn plus" id="btn-qplus1">+1</button>';
+  html += '<button class="counter-btn plus" id="btn-qplus5">+5</button>';
+  html += '</div>';
+  html += '</div>';
+
   // Quick actions
   html += '<div style="display:flex;gap:8px;margin-bottom:16px">';
-  html += '<button class="btn btn-primary" style="flex:1;font-size:14px;padding:10px" id="btn-detail-add">+ 添加课时</button>';
+  html += '<button class="btn btn-primary" style="flex:1;font-size:14px;padding:10px" id="btn-detail-add">+ 添加课时（含日期）</button>';
   html += '<button class="btn btn-secondary" style="flex:1;font-size:14px;padding:10px" id="btn-close-detail">关闭</button>';
   html += '</div>';
 
@@ -690,6 +721,41 @@ function showStudentDetail(sid) {
   $('#btn-detail-add').addEventListener('click', function () {
     closeDetail();
     showAddModalForStudent(s);
+  });
+
+  // Quick counter handlers
+  var countEl = $('#quick-count');
+
+  function updateCount() {
+    countEl.textContent = sessionIds.length;
+    // Update header stats
+    var total = getStudentLessonCount(s.id);
+    var month = getStudentMonthCount(s.id);
+    var statsEl = $('#detail-modal .stats-sm');
+    if (statsEl) statsEl.textContent = '共 ' + total + ' 节课 · 本月 ' + month + ' 节';
+    // Refresh lesson list
+    refreshDetailList(s);
+  }
+
+  $('#btn-qplus1').addEventListener('click', function () {
+    var lesson = quickAddCompleted(s.id, s.name);
+    sessionIds.push(lesson.id);
+    updateCount();
+  });
+
+  $('#btn-qplus5').addEventListener('click', function () {
+    for (var i = 0; i < 5; i++) {
+      var lesson = quickAddCompleted(s.id, s.name);
+      sessionIds.push(lesson.id);
+    }
+    updateCount();
+  });
+
+  $('#btn-qminus').addEventListener('click', function () {
+    if (sessionIds.length === 0) return;
+    var lastId = sessionIds.pop();
+    deleteLesson(lastId);
+    updateCount();
   });
 
   $('#btn-delete-student').addEventListener('click', function () {
