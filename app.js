@@ -189,9 +189,22 @@ const TIME_PATTERNS = [
   { re: /(早上|上午|中午|下午|晚上|傍晚)?(\d{1,2})[点:：]/, fn: (m) => parseTime(m[1], m[2], '00') },
 ];
 
+// Map Chinese number words to digits
+function chineseNum(ch) {
+  var map = { '一':1, '二':2, '两':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9, '十':10 };
+  return map[ch] || 0;
+}
+
 const DURATION_PATTERNS = [
+  // Chinese number + half: 一个半小时, 两个半
+  { re: /([一两二三四五六七八九十])[个]?半[小]?时/, fn: (m) => chineseNum(m[1]) * 60 + 30 },
+  // Chinese number hours: 两个小时, 一小时
+  { re: /([一两二三四五六七八九十])[个]?[小]?时/, fn: (m) => chineseNum(m[1]) * 60 },
+  // Digit + half: 1个半小时, 2半
   { re: /(\d{1,2})[个]?半[小]?时/, fn: (m) => parseInt(m[1]) * 60 + 30 },
+  // Digit hours: 1个小时, 2小时
   { re: /(\d{1,2})[个]?[小]?时/, fn: (m) => parseInt(m[1]) * 60 },
+  // Bare half: 半小时
   { re: /半[个]?[小]?时/, fn: () => 30 },
 ];
 
@@ -981,7 +994,13 @@ function showStudentDetail(sid) {
   // Header
   html += '<div class="detail-header">';
   html += '<div class="avatar-lg">' + s.name.charAt(0) + '</div>';
-  html += '<div class="name-lg">' + s.name + '</div>';
+  html += '<div class="name-lg" id="student-name-display" style="cursor:pointer">' + s.name + ' <span style="font-size:14px;color:var(--text-tertiary);font-weight:400">编辑</span></div>';
+  html += '<div id="student-name-edit" style="display:none;margin-top:4px">';
+  html += '<div style="display:flex;gap:6px;justify-content:center">';
+  html += '<input type="text" id="edit-student-name" value="' + s.name + '" style="width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:15px;text-align:center;background:#FAFAFA">';
+  html += '<button id="btn-rename-save" style="padding:6px 12px;border:none;border-radius:6px;background:var(--text);color:#fff;font-size:13px;cursor:pointer">保存</button>';
+  html += '</div>';
+  html += '</div>';
   html += '<div class="stats-sm">共 ' + total + ' 节课 · 本月 ' + month + ' 节</div>';
   html += '</div>';
 
@@ -1023,6 +1042,27 @@ function showStudentDetail(sid) {
   $('#btn-detail-add').addEventListener('click', function () {
     closeDetail();
     showAddModalForStudent(s);
+  });
+
+  // Rename student
+  $('#student-name-display').addEventListener('click', function () {
+    $('#student-name-display').style.display = 'none';
+    $('#student-name-edit').style.display = 'block';
+    setTimeout(function () { $('#edit-student-name').select(); }, 50);
+  });
+
+  $('#btn-rename-save').addEventListener('click', function () {
+    var newName = $('#edit-student-name').value.trim();
+    if (!newName) { alert('名字不能为空'); return; }
+    s.name = newName;
+    // Update all lessons referencing this student
+    appData.lessons.forEach(function (l) {
+      if (l.studentId === s.id) l.studentName = newName;
+    });
+    saveData();
+    showToast('已重命名：' + newName);
+    closeDetail();
+    showStudentDetail(s.id);
   });
 
   // Quick counter handlers
