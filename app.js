@@ -1463,6 +1463,8 @@ function showAddModal() {
       }
 
       var parsed = parseVoiceInput(text);
+      var preSelected = getAddStudentName();
+      if (preSelected && preSelected !== '__new__') parsed._preSelected = preSelected;
       showConfirmModal(parsed, function () { closeAddModal(); });
     });
 
@@ -1623,7 +1625,7 @@ function showConfirmModal(parsed, onSuccess) {
   html += '<h2>确认课程信息</h2>';
 
   html += '<div class="parsed-result">';
-  html += '<div class="field"><span class="key">学生</span><span class="val">' + (parsed.studentName || '（未识别）') + '</span></div>';
+  html += '<div class="field"><span class="key">学生</span><span class="val">' + (effectiveName || parsed.studentName || '（未识别）') + '</span></div>';
   html += '<div class="field"><span class="key">日期</span><span class="val">' + parsed.date + '</span></div>';
   html += '<div class="field"><span class="key">时间</span><span class="val">' + (parsed.startTime || '（未识别）') + '</span></div>';
   html += '<div class="field"><span class="key">时长</span><span class="val">' + (parsed.durationMins / 60) + ' 小时</span></div>';
@@ -1633,24 +1635,30 @@ function showConfirmModal(parsed, onSuccess) {
 
   // Editable fields
   var students = getStudents();
-  var studentExists = students.some(function (s) { return s.name === parsed.studentName; });
+  // If voice didn't match a known student, use the pre-selected student from add modal
+  var effectiveName = parsed.studentName;
+  var studentExists = students.some(function (s) { return s.name === effectiveName; });
+  if (!studentExists && parsed._preSelected) {
+    effectiveName = parsed._preSelected;
+    studentExists = students.some(function (s) { return s.name === effectiveName; });
+  }
   html += '<div class="form-group"><label>学生</label>';
   if (students.length > 0) {
     html += '<select id="cfm-student">';
     students.forEach(function (s) {
-      var sel = s.name === parsed.studentName ? ' selected' : '';
+      var sel = s.name === effectiveName ? ' selected' : '';
       html += '<option value="' + s.name + '"' + sel + '>' + s.name + '</option>';
     });
-    var newSel = (!studentExists && parsed.studentName) ? ' selected' : '';
+    var newSel = (!studentExists && effectiveName) ? ' selected' : '';
     html += '<option value="__new__"' + newSel + '>+ 新学生</option>';
     html += '</select>';
-    var wrapStyle = (!studentExists && parsed.studentName) ? 'display:block' : 'display:none';
-    var newVal = (!studentExists && parsed.studentName) ? parsed.studentName : '';
+    var wrapStyle = (!studentExists && effectiveName) ? 'display:block' : 'display:none';
+    var newVal = (!studentExists && effectiveName) ? effectiveName : '';
     html += '<div id="cfm-new-student-wrap" style="' + wrapStyle + ';margin-top:8px">';
     html += '<input type="text" id="cfm-student-new" placeholder="输入新学生姓名" value="' + newVal + '" style="width:100%;padding:12px;border:1px solid #E0E0E0;border-radius:10px;font-size:16px;background:#F9F9F9">';
     html += '</div>';
   } else {
-    html += '<input type="text" id="cfm-student" value="' + parsed.studentName + '">';
+    html += '<input type="text" id="cfm-student" value="' + effectiveName + '">';
   }
   html += '</div>';
 
