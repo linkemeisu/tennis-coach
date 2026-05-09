@@ -1464,7 +1464,10 @@ function showAddModal() {
 
       var parsed = parseVoiceInput(text);
       var preSelected = getAddStudentName();
-      if (preSelected && preSelected !== '__new__') parsed._preSelected = preSelected;
+      // If a student is already selected, don't guess name from voice
+      if (preSelected && preSelected !== '__new__') {
+        parsed.studentName = preSelected;
+      }
       showConfirmModal(parsed, function () { closeAddModal(); });
     });
 
