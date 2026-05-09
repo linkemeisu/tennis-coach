@@ -1,0 +1,94 @@
+{
+  "students": [
+    {
+      "id": "moxqtw3bmjscp",
+      "name": "jerry",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqu012lp6br",
+      "name": "king",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqu66es6oll",
+      "name": "许诺",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqu9v3qf9ia",
+      "name": "hank",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqxssgishae",
+      "name": "黄liyi",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqy3o7s36a9",
+      "name": "刘yulu",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqy9qn7birx",
+      "name": "老哥",
+      "createdAt": "2026-05-09"
+    },
+    {
+      "id": "moxqyw8lz8zta",
+      "name": "小laodi合伙人",
+      "createdAt": "2026-05-09"
+    }
+  ],
+  "lessons": [
+    {
+      "studentId": "moxqu9v3qf9ia",
+      "studentName": "hank",
+      "date": "2026-05-11",
+      "startTime": "08:30",
+      "endTime": "10:30",
+      "duration": 120,
+      "status": "upcoming",
+      "id": "moxqvb12n8c57",
+      "createdAt": "2026-05-09T02:48:20.630Z",
+      "calendarAdded": false
+    },
+    {
+      "studentId": "moxqtw3bmjscp",
+      "studentName": "jerry",
+      "date": "2026-05-10",
+      "startTime": "10:30",
+      "endTime": "12:00",
+      "duration": 90,
+      "status": "upcoming",
+      "id": "moxqw2bjexv3g",
+      "createdAt": "2026-05-09T02:48:55.999Z",
+      "calendarAdded": false
+    },
+    {
+      "studentId": "moxqu66es6oll",
+      "studentName": "许诺",
+      "date": "2026-05-10",
+      "startTime": "20:00",
+      "endTime": "21:00",
+      "duration": 60,
+      "status": "upcoming",
+      "id": "moxqwimztimfg",
+      "createdAt": "2026-05-09T02:49:17.147Z",
+      "calendarAdded": false
+    },
+    {
+      "studentId": "moxqu012lp6br",
+      "studentName": "king",
+      "date": "2026-05-10",
+      "startTime": "08:30",
+      "endTime": "10:00",
+      "duration": 90,
+      "status": "upcoming",
+      "id": "moxqx45kr71pa",
+      "createdAt": "2026-05-09T02:49:45.032Z",
+      "calendarAdded": false
+    }
+  ]
+}
