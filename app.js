@@ -67,8 +67,13 @@ function getDemoData() {
 }
 
 function saveData() {
+  appData._lastModified = Date.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
   autoPushOnChange();
+}
+
+function dataAge() {
+  return appData._lastModified || 0;
 }
 
 function uid() {
@@ -791,6 +796,10 @@ function pullFromGitHub(token, cb) {
     var json = decodeURIComponent(escape(atob(info.content)));
     var data = JSON.parse(json);
     if (data.students && data.lessons) {
+      var cloudTime = data._lastModified || 0;
+      var localTime = dataAge();
+      // Only pull if cloud is newer than local
+      if (cloudTime <= localTime) { cb(false); return; }
       appData = data;
       saveData();
       cb(true);
@@ -1330,10 +1339,7 @@ function showEditLessonModal(lesson, onSaved) {
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
 
-  overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) closeEditModal();
-  });
-
+  // Do NOT close on outside tap — changes would be lost
   $('#btn-edit-cancel').addEventListener('click', closeEditModal);
 
   $('#btn-edit-save').addEventListener('click', function () {
