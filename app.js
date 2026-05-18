@@ -488,7 +488,9 @@ function renderHome() {
   // Stats
   html += '<div class="stats-row">';
   html += '<div class="stat-card"><div class="num">' + upcoming.length + '</div><div class="label">即将上课</div></div>';
-  html += '<div class="stat-card"><div class="num">' + monthLessons.length + '</div><div class="label">本月已完成</div></div>';
+  var monthHours = monthLessons.reduce(function (s, l) { return s + (l.duration || 60); }, 0) / 60;
+  var hoursText = monthHours >= 1 ? Math.round(monthHours * 10) / 10 + ' 小时' : (monthHours * 60) + ' 分钟';
+  html += '<div class="stat-card"><div class="num">' + monthLessons.length + '</div><div class="label">本月已完成</div><div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + hoursText + '</div></div>';
   html += '<div class="stat-card"><div class="num">' + appData.students.length + '</div><div class="label">学生人数</div></div>';
   html += '</div>';
 
