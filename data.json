@@ -11,13 +11,13 @@
       "createdAt": "2026-05-09"
     },
     {
-      "id": "moxqtw3bmjscp",
-      "name": "jerry",
+      "id": "moxqy3o7s36a9",
+      "name": "刘yulu",
       "createdAt": "2026-05-09"
     },
     {
-      "id": "moxqy3o7s36a9",
-      "name": "刘yulu",
+      "id": "moxqtw3bmjscp",
+      "name": "jerry",
       "createdAt": "2026-05-09"
     },
     {
@@ -36,13 +36,18 @@
       "createdAt": "2026-05-09"
     },
     {
-      "id": "moxqyw8lz8zta",
-      "name": "小laodi合伙人",
+      "id": "moxumgut6b3nt",
+      "name": "水晶",
       "createdAt": "2026-05-09"
     },
     {
-      "id": "moxumgut6b3nt",
-      "name": "水晶",
+      "id": "mp9ne44uze4nn",
+      "name": "肖总",
+      "createdAt": "2026-05-17"
+    },
+    {
+      "id": "moxqyw8lz8zta",
+      "name": "小laodi合伙人",
       "createdAt": "2026-05-09"
     },
     {
@@ -54,11 +59,6 @@
       "id": "moxxtx2618swn",
       "name": "hanna",
       "createdAt": "2026-05-09"
-    },
-    {
-      "id": "mp9ne44uze4nn",
-      "name": "kim",
-      "createdAt": "2026-05-17"
     }
   ],
   "lessons": [
@@ -208,7 +208,7 @@
     },
     {
       "studentId": "mp9ne44uze4nn",
-      "studentName": "kim",
+      "studentName": "肖总",
       "date": "2026-05-19",
       "startTime": "19:00",
       "endTime": "20:00",
@@ -225,7 +225,7 @@
       "startTime": "08:00",
       "endTime": "09:00",
       "duration": 60,
-      "status": "upcoming",
+      "status": "completed",
       "id": "mp9nfof4o6xej",
       "createdAt": "2026-05-17T10:45:26.752Z",
       "calendarAdded": true
@@ -387,5 +387,5 @@
       "createdAt": "2026-05-18T13:53:45.398Z"
     }
   ],
-  "_lastModified": 1779199909253
+  "_lastModified": 1779359053973
 }
